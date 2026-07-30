@@ -1,0 +1,447 @@
+/* =========================================================
+   LUMIÈRE FASHION — Catálogo de Produtos
+   Base visual herdada da Landing Page (mesma paleta e mesmo
+   tratamento de fundo/moldura), acrescida da vitrine em CSS Grid.
+   ========================================================= */
+
+/* ===== FONTES (hospedadas localmente, sem depender do Google Fonts CDN) ===== */
+@font-face {
+  font-family: 'Bodoni Moda';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('assets/fonts/bodoni-moda-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+  src: url('assets/fonts/montserrat-latin.woff2') format('woff2');
+}
+
+/* ===== VARIÁVEIS DA MARCA (mesma paleta da Landing Page) ===== */
+:root {
+  --color-cream: #FBF7F3;      /* fundo principal */
+  --color-cream-soft: #F6EEDB; /* fundo secundário / bordas suaves */
+  --color-gold: #C6A15C;       /* dourado principal */
+  --color-gold-dark: #9C7C3E;  /* dourado escuro (hover, contraste) */
+  --color-gold-light: #E4D3AC; /* dourado claro (bordas, detalhes) */
+  --color-text: #3E362E;       /* marrom-carvão para textos */
+  --color-text-soft: #6E645A;  /* texto secundário */
+  --color-white: #FFFFFF;
+
+  --font-title: 'Bodoni Moda', serif;
+  --font-body: 'Montserrat', sans-serif;
+}
+
+/* ===== RESET BÁSICO ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-cream);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== LAYOUT GERAL (Mobile-first) ===== */
+.page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Padding lateral enxuto no celular para dar largura útil às duas colunas */
+  padding: 1.5rem 1.1rem;
+}
+
+/* Conteúdo real sempre acima das decorações */
+.header,
+.main,
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== FUNDO DA MARCA =====
+   position: fixed em vez de background-attachment: fixed, que falha no Safari iOS
+   (navegador embutido do Instagram/WhatsApp, principal via de acesso das clientes) */
+.page-bg {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: var(--color-cream);
+  background-image: url('assets/branch-top-right.png'),
+                    url('assets/branch-bottom-left.png'),
+                    url('assets/silk-top-left.png'),
+                    url('assets/silk-bottom-right.png');
+  background-position: top right, bottom left, top left, bottom right;
+  background-repeat: no-repeat;
+  background-size: 130px auto, 110px auto, 170px auto, 170px auto;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ===== MOLDURA DECORATIVA ===== */
+.page-frame {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  border: 1px solid var(--color-gold-light);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ===== HEADER ===== */
+.header {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.logo {
+  width: 120px;
+  height: auto;
+  min-height: 86px;
+}
+
+/* ===== MAIN ===== */
+.main {
+  width: 100%;
+  max-width: 1200px;
+  flex: 1;
+}
+
+/* ===== INTRO DO CATÁLOGO ===== */
+.catalogo-intro {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.catalogo-title {
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 1.9rem;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  /* Compensa o espaço que o letter-spacing acrescenta depois da última
+     letra, que desloca o texto centralizado para a esquerda */
+  text-indent: 4px;
+  color: var(--color-gold-dark);
+  margin-bottom: 0.75rem;
+}
+
+.catalogo-subtitle {
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--color-text-soft);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ===== MENSAGENS DE ESTADO (carregando / erro / vazio) ===== */
+.vitrine-status {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--color-text-soft);
+  padding: 3rem 1rem;
+}
+
+.vitrine-status--erro {
+  color: var(--color-gold-dark);
+  line-height: 2;
+}
+
+.vitrine-status--erro a {
+  color: var(--color-gold-dark);
+  font-weight: 500;
+  text-underline-offset: 4px;
+}
+
+/* Aviso de instalação: some assim que a URL da planilha for preenchida */
+.vitrine-status--config {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  border: 1px dashed var(--color-gold-light);
+  border-radius: 6px;
+  background-color: var(--color-cream-soft);
+  line-height: 1.8;
+}
+
+.vitrine-status--config code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82em;
+  color: var(--color-gold-dark);
+  background-color: var(--color-white);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+}
+
+/* =========================================================
+   VITRINE — CSS Grid responsivo
+   2 colunas já no celular (principal via de acesso das clientes:
+   cards menores cabem lado a lado e reduzem muito a rolagem)
+   → 3 no tablet → 4 no desktop
+   ========================================================= */
+.vitrine {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
+}
+
+/* ===== CARD DE PRODUTO ===== */
+.card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-gold-light);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-gold);
+  box-shadow: 0 12px 26px rgba(62, 54, 46, 0.1);
+}
+
+.card-media {
+  /* Proporção fixa 3:4 (retrato) para que fotos de tamanhos diferentes
+     não desalinhem as linhas do grid */
+  aspect-ratio: 3 / 4;
+  background-color: var(--color-cream-soft);
+  overflow: hidden;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.3rem;
+  padding: 0.7rem 0.6rem 0.75rem;
+  text-align: center;
+}
+
+.card-categoria {
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.card-nome {
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text);
+  /* Empurra o botão para a base do card, alinhando os CTAs de toda a linha
+     mesmo quando os nomes ocupam número diferente de linhas */
+  margin-bottom: auto;
+  padding-bottom: 0.55rem;
+}
+
+/* ===== BOTÃO DE COMPRA (mesmo estilo do CTA da Landing Page) ===== */
+.card-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.6rem 0.5rem;
+  border: 1.5px solid var(--color-gold);
+  border-radius: 5px;
+  background-color: var(--color-gold);
+  color: var(--color-white);
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  text-decoration: none;
+  /* O rótulo tem que caber em uma linha: quebrado em duas, o botão
+     cresce e desalinha os cards da mesma fileira */
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.3s ease,
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+.card-btn:hover {
+  background-color: var(--color-gold-dark);
+  border-color: var(--color-gold-dark);
+  box-shadow: 0 6px 14px rgba(156, 124, 62, 0.28);
+}
+
+.card-btn:active {
+  box-shadow: 0 3px 8px rgba(156, 124, 62, 0.25);
+}
+
+/* Acessibilidade: foco visível para navegação por teclado */
+.card-btn:focus-visible {
+  outline: 2px solid var(--color-gold-dark);
+  outline-offset: 3px;
+}
+
+.card-btn svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== FOOTER ===== */
+.footer {
+  width: 100%;
+  text-align: center;
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-gold-light);
+}
+
+.footer p {
+  font-family: var(--font-title);
+  font-size: 0.75rem;
+  color: var(--color-text-soft);
+  letter-spacing: 0.8px;
+}
+
+/* =========================================================
+   RESPONSIVIDADE
+   ========================================================= */
+@media (min-width: 600px) {
+  .page {
+    padding: 3rem 2rem;
+  }
+
+  .page-frame {
+    top: 18px;
+    right: 18px;
+    bottom: 18px;
+    left: 18px;
+  }
+
+  .page-bg {
+    background-size: 180px auto, 155px auto, 240px auto, 240px auto;
+  }
+
+  .logo {
+    width: 145px;
+  }
+
+  .catalogo-title {
+    font-size: 2.3rem;
+    letter-spacing: 6px;
+    text-indent: 6px;
+  }
+
+  .catalogo-subtitle {
+    font-size: 0.95rem;
+  }
+}
+
+/* A terceira coluna só entra a partir de 700px: abaixo disso ela deixaria
+   o card estreito demais para o rótulo do botão caber em uma linha */
+@media (min-width: 700px) {
+  .vitrine {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.35rem;
+  }
+
+  /* Com mais espaço disponível, o card volta a respirar */
+  .card-body {
+    gap: 0.4rem;
+    padding: 1rem 0.9rem 1.05rem;
+  }
+
+  .card-categoria {
+    font-size: 0.6rem;
+    letter-spacing: 1.5px;
+  }
+
+  .card-nome {
+    font-size: 0.95rem;
+    letter-spacing: 1.4px;
+    padding-bottom: 0.7rem;
+  }
+
+  .card-btn {
+    padding: 0.7rem 0.8rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.9px;
+    gap: 0.5rem;
+  }
+
+  .card-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (min-width: 1000px) {
+  .vitrine {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding: 4rem 2.5rem;
+  }
+
+  .page-frame {
+    top: 26px;
+    right: 26px;
+    bottom: 26px;
+    left: 26px;
+  }
+
+  .page-bg {
+    background-size: 250px auto, 215px auto, 330px auto, 330px auto;
+  }
+
+  .catalogo-intro {
+    margin-bottom: 3.25rem;
+  }
+
+  .catalogo-title {
+    font-size: 2.6rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .vitrine {
+    gap: 1.85rem;
+  }
+}

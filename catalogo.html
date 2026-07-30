@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo | Lumière Fashion</title>
+  <meta name="description" content="Catálogo Lumière Fashion — peças exclusivas, atemporais e sofisticadas. Compre direto pelo WhatsApp.">
+
+  <!-- Fontes Bodoni Moda (títulos/produtos) + Montserrat (textos/botões) hospedadas em assets/fonts,
+       para não depender do CDN do Google Fonts -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== FUNDO DA MARCA (galhos e seda ancorados nos cantos, fixos na tela) ===== -->
+  <div class="page-bg" aria-hidden="true"></div>
+
+  <!-- ===== MOLDURA DECORATIVA (linha fina dourada ao redor da tela) ===== -->
+  <div class="page-frame" aria-hidden="true"></div>
+
+  <div class="page">
+
+    <!-- ===== HEADER MINIMALISTA (apenas a logo centralizada) ===== -->
+    <header class="header">
+      <img src="assets/logo-lumiere.png" alt="Lumière Fashion" class="logo">
+    </header>
+
+    <main class="main">
+
+      <!-- ===== TÍTULO DA SEÇÃO ===== -->
+      <section class="catalogo-intro">
+        <h1 class="catalogo-title">Catálogo</h1>
+        <p class="catalogo-subtitle">
+          Selecione a sua peça e finalize a compra diretamente pelo WhatsApp.
+        </p>
+      </section>
+
+      <!-- ===== ESTADOS DE CARREGAMENTO / ERRO / VAZIO =====
+           Controlados pelo script.js; começam ocultos, exceto o de carregamento -->
+      <p class="vitrine-status" id="status-carregando">Carregando as peças…</p>
+
+      <!-- Falha de rede/planilha: oferece o WhatsApp para não perder a cliente.
+           O link é preenchido pelo script.js com o NUMERO_WHATSAPP configurado. -->
+      <p class="vitrine-status vitrine-status--erro" id="status-erro" hidden>
+        Não foi possível carregar o catálogo agora.<br>
+        <a id="erro-whatsapp" href="#" target="_blank" rel="noopener noreferrer">
+          Fale com a gente pelo WhatsApp
+        </a>
+      </p>
+
+      <p class="vitrine-status" id="status-vazio" hidden>
+        Nenhuma peça disponível no momento.
+      </p>
+
+      <!-- Estado de INSTALAÇÃO: aparece só enquanto a constante URL_PLANILHA_CSV
+           estiver vazia em script.js. Some sozinho assim que o link for colado. -->
+      <p class="vitrine-status vitrine-status--config" id="status-config" hidden>
+        <strong>Catálogo ainda não conectado à planilha.</strong><br>
+        Abra o arquivo <code>script.js</code> e cole o link do Google Sheets
+        publicado em .csv na constante <code>URL_PLANILHA_CSV</code>.
+      </p>
+
+      <!-- ===== VITRINE: os cards são injetados aqui pelo script.js ===== -->
+      <div class="vitrine" id="vitrine" aria-live="polite"></div>
+
+    </main>
+
+    <footer class="footer">
+      <p>&copy; 2026 Lumière Fashion. Todos os direitos reservados.</p>
+    </footer>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
