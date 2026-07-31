@@ -34,6 +34,23 @@ const NUMERO_WHATSAPP = '5534998371534';
    Não existe coluna de preço em uso: por decisão da marca o valor não aparece
    no site, para que a cliente chame no WhatsApp. */
 
+/* Ordem em que as categorias aparecem no menu.
+   Só entram no menu as que realmente têm peças na planilha — uma categoria
+   listada aqui e sem produtos simplesmente não aparece.
+   Categorias que existam na planilha mas não estejam nesta lista entram no
+   final do menu, em ordem alfabética, para nenhuma peça ficar inacessível. */
+const ORDEM_CATEGORIAS = [
+  'Conjuntos',
+  'Calças',
+  'Vestidos',
+  'Blusas',
+  'Camisas',
+  'Shorts'
+];
+
+/* Rótulo do botão que mostra o catálogo inteiro */
+const ROTULO_TODAS = 'Todas';
+
 /* Mensagem que já vem escrita quando a cliente toca em "Consultar valor".
    Edite o texto à vontade. Os campos entre chaves são trocados pelos dados da peça:
 
@@ -70,7 +87,9 @@ const statusCarregando = document.getElementById('status-carregando');
 const statusErro = document.getElementById('status-erro');
 const statusVazio = document.getElementById('status-vazio');
 const statusConfig = document.getElementById('status-config');
+const statusSemResultado = document.getElementById('status-sem-resultado');
 const linkErroWhatsApp = document.getElementById('erro-whatsapp');
+const filtros = document.getElementById('filtros');
 
 /* ---------------------------------------------------------
    3) LEITURA E PARSER DO CSV
@@ -191,6 +210,35 @@ function normalizarImagem(url) {
 }
 
 /**
+ * Reúne todas as fotos da peça, na ordem das colunas da planilha:
+ * link_imagem, link_imagem_2, link_imagem_3... (quantas a loja quiser).
+ *
+ * Também aceita mais de um endereço dentro da mesma célula, separados por
+ * quebra de linha ou barra vertical — atalho para quem colar tudo de uma vez.
+ * Colunas vazias são descartadas, então deixar buracos no meio não quebra nada.
+ */
+function extrairImagens(produto) {
+  return Object.keys(produto)
+    .filter(function (coluna) {
+      return /^link_imagem(_\d+)?$/.test(coluna);
+    })
+    .sort(function (a, b) {
+      // "link_imagem" conta como 1; "link_imagem_2" como 2, e assim por diante
+      const numero = function (coluna) {
+        const partes = coluna.split('_');
+        return coluna === 'link_imagem' ? 1 : Number(partes[partes.length - 1]);
+      };
+      return numero(a) - numero(b);
+    })
+    .reduce(function (lista, coluna) {
+      return lista.concat(String(produto[coluna] || '').split(/[\n|]+/));
+    }, [])
+    .map(function (url) { return url.trim(); })
+    .filter(Boolean)
+    .map(normalizarImagem);
+}
+
+/**
  * O WhatsApp só consegue gerar a prévia da foto a partir de um endereço
  * completo. Se a planilha trouxer um caminho relativo, resolve contra a
  * página atual.
@@ -270,6 +318,177 @@ function criarIconeWhatsApp() {
   return svg;
 }
 
+const SETA_ESQUERDA = 'M15 4 L7 12 L15 20';
+const SETA_DIREITA = 'M9 4 L17 12 L9 20';
+
+function criarIconeSeta(desenho) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.6');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', desenho);
+  svg.appendChild(path);
+
+  return svg;
+}
+
+/**
+ * Monta a área de foto do card.
+ *
+ * Com uma foto só, devolve a imagem simples de sempre. Com duas ou mais,
+ * devolve um carrossel: no celular a navegação é por arraste (scroll-snap
+ * nativo, que é mais fluido do que qualquer animação em JS) e no desktop
+ * aparecem setas ao passar o mouse. Os pontos indicam a posição e também
+ * navegam.
+ */
+function criarMedia(imagens, nomeProduto) {
+  const media = document.createElement('div');
+  media.className = 'card-media';
+
+  const descricao = nomeProduto || 'Peça Lumière Fashion';
+
+  // Sem foto na planilha: fica só o fundo creme do .card-media
+  if (imagens.length === 0) return media;
+
+  const trilho = document.createElement('div');
+  trilho.className = 'carrossel-trilho';
+
+  const slides = imagens.map(function (url, indice) {
+    const imagem = document.createElement('img');
+    imagem.className = 'card-image';
+    imagem.src = url;
+    imagem.alt = imagens.length > 1
+      ? descricao + ' — foto ' + (indice + 1) + ' de ' + imagens.length
+      : descricao;
+    // A primeira foto é a que aparece na vitrine: carrega junto com a página.
+    // As demais só quando a cliente arrastar.
+    imagem.loading = indice === 0 ? 'eager' : 'lazy';
+    trilho.appendChild(imagem);
+    return imagem;
+  });
+
+  media.appendChild(trilho);
+
+  if (imagens.length === 1) {
+    // Link quebrado: remove a imagem e deixa o fundo creme no lugar,
+    // em vez do ícone de imagem quebrada do navegador
+    slides[0].addEventListener('error', function () {
+      slides[0].remove();
+    });
+    return media;
+  }
+
+  media.classList.add('card-media--carrossel');
+
+  // --- Pontos ---
+  const pontos = document.createElement('div');
+  pontos.className = 'carrossel-pontos';
+
+  const botoesPonto = imagens.map(function (url, indice) {
+    const ponto = document.createElement('button');
+    ponto.type = 'button';
+    ponto.className = 'carrossel-ponto';
+    ponto.setAttribute('aria-label', 'Ver foto ' + (indice + 1));
+    ponto.addEventListener('click', function () {
+      trilho.scrollTo({ left: trilho.clientWidth * indice, behavior: 'smooth' });
+    });
+    pontos.appendChild(ponto);
+    return ponto;
+  });
+
+  media.appendChild(pontos);
+
+  // --- Setas ---
+  function criarSeta(classe, rotulo, desenho, passo) {
+    const seta = document.createElement('button');
+    seta.type = 'button';
+    seta.className = 'carrossel-seta ' + classe;
+    seta.setAttribute('aria-label', rotulo);
+    seta.appendChild(criarIconeSeta(desenho));
+    seta.addEventListener('click', function () {
+      trilho.scrollBy({ left: trilho.clientWidth * passo, behavior: 'smooth' });
+    });
+    media.appendChild(seta);
+    return seta;
+  }
+
+  const setaAnterior = criarSeta('carrossel-seta--anterior', 'Foto anterior', SETA_ESQUERDA, -1);
+  const setaProxima = criarSeta('carrossel-seta--proxima', 'Próxima foto', SETA_DIREITA, 1);
+
+  // --- Sincronização: arrastar a foto acende o ponto correspondente ---
+  function marcarAtual() {
+    const restantes = trilho.children.length;
+    if (restantes === 0) return;
+
+    // Antes de o card entrar na página a largura é 0, e a divisão daria NaN:
+    // nesse momento a foto exibida é a primeira
+    const largura = trilho.clientWidth;
+    const atual = largura ? Math.round(trilho.scrollLeft / largura) : 0;
+
+    Array.prototype.forEach.call(pontos.children, function (ponto, indice) {
+      const ativo = indice === atual;
+      ponto.classList.toggle('carrossel-ponto--ativo', ativo);
+      ponto.setAttribute('aria-current', ativo ? 'true' : 'false');
+    });
+
+    // Nas pontas, a seta correspondente não tem para onde levar
+    setaAnterior.disabled = atual <= 0;
+    setaProxima.disabled = atual >= restantes - 1;
+  }
+
+  let aguardandoQuadro = false;
+  trilho.addEventListener('scroll', function () {
+    // O scroll dispara dezenas de vezes por arraste: um quadro por vez basta
+    if (aguardandoQuadro) return;
+    aguardandoQuadro = true;
+    window.requestAnimationFrame(function () {
+      aguardandoQuadro = false;
+      marcarAtual();
+    });
+  });
+
+  // --- Foto quebrada: some o slide e o ponto dele ---
+  slides.forEach(function (imagem, indice) {
+    imagem.addEventListener('error', function () {
+      imagem.remove();
+      botoesPonto[indice].remove();
+
+      const restantes = trilho.children.length;
+
+      if (restantes === 0) {
+        // Todas falharam: volta ao card sem foto
+        media.classList.remove('card-media--carrossel');
+        pontos.remove();
+        setaAnterior.remove();
+        setaProxima.remove();
+        return;
+      }
+
+      if (restantes === 1) {
+        // Sobrou uma: não é mais carrossel
+        media.classList.remove('card-media--carrossel');
+        pontos.remove();
+        setaAnterior.remove();
+        setaProxima.remove();
+        return;
+      }
+
+      marcarAtual();
+    });
+  });
+
+  marcarAtual();
+
+  return media;
+}
+
 /**
  * Cria o card de um produto.
  * Os textos vindos da planilha são inseridos via textContent,
@@ -279,21 +498,8 @@ function criarCard(produto) {
   const card = document.createElement('article');
   card.className = 'card';
 
-  // --- Imagem ---
-  const media = document.createElement('div');
-  media.className = 'card-media';
-
-  const imagem = document.createElement('img');
-  imagem.className = 'card-image';
-  imagem.src = normalizarImagem(produto.link_imagem);
-  imagem.alt = produto.nome_produto || 'Peça Lumière Fashion';
-  imagem.loading = 'lazy';
-  // Link quebrado na planilha: remove a imagem e deixa o fundo creme do
-  // .card-media no lugar, em vez do ícone de imagem quebrada do navegador
-  imagem.addEventListener('error', function () {
-    imagem.remove();
-  });
-  media.appendChild(imagem);
+  // --- Fotos ---
+  const media = criarMedia(extrairImagens(produto), produto.nome_produto);
 
   // --- Conteúdo ---
   const corpo = document.createElement('div');
@@ -344,13 +550,126 @@ function renderizarVitrine(produtos) {
 }
 
 /* ---------------------------------------------------------
-   6) CONTROLE DE ESTADOS E INICIALIZAÇÃO
+   6) MENU DE CATEGORIAS
+   --------------------------------------------------------- */
+
+/* Guarda o catálogo inteiro em memória: filtrar é só re-renderizar a partir
+   daqui, sem baixar a planilha de novo a cada toque no menu. */
+let todosOsProdutos = [];
+
+/**
+ * Transforma "Calças" em "calcas" para uso no endereço da página.
+ * Assim dá para mandar o link de uma categoria direto para a cliente
+ * (ex.: .../index.html#vestidos).
+ */
+function gerarApelido(texto) {
+  return String(texto)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')  // tira os acentos separados pelo normalize
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Lista as categorias que têm ao menos uma peça, na ordem de ORDEM_CATEGORIAS.
+ * As que não estiverem na constante vão para o fim, em ordem alfabética.
+ */
+function levantarCategorias(produtos) {
+  const existentes = [];
+
+  produtos.forEach(function (produto) {
+    const categoria = (produto.categoria || '').trim();
+    if (categoria && existentes.indexOf(categoria) === -1) {
+      existentes.push(categoria);
+    }
+  });
+
+  const naOrdem = ORDEM_CATEGORIAS.filter(function (categoria) {
+    return existentes.indexOf(categoria) !== -1;
+  });
+
+  const extras = existentes
+    .filter(function (categoria) { return ORDEM_CATEGORIAS.indexOf(categoria) === -1; })
+    .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+
+  return naOrdem.concat(extras);
+}
+
+/**
+ * Aplica o filtro: re-renderiza a vitrine e marca o botão ativo.
+ * categoria vazia ('') significa "Todas".
+ */
+function aplicarFiltro(categoria) {
+  const selecionados = categoria
+    ? todosOsProdutos.filter(function (produto) { return produto.categoria === categoria; })
+    : todosOsProdutos;
+
+  renderizarVitrine(selecionados);
+  mostrarStatus(selecionados.length === 0 ? statusSemResultado : null);
+
+  // Estado visual e de acessibilidade dos botões
+  Array.prototype.forEach.call(filtros.children, function (botao) {
+    const ativo = botao.dataset.categoria === categoria;
+    botao.classList.toggle('filtro--ativo', ativo);
+    botao.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+  });
+}
+
+/**
+ * Monta os botões do menu e liga a navegação por endereço (#categoria),
+ * para que o link de uma categoria possa ser compartilhado no WhatsApp.
+ */
+function montarMenu(produtos) {
+  const categorias = levantarCategorias(produtos);
+
+  // Com uma categoria só (ou nenhuma) o menu não ajuda em nada
+  if (categorias.length < 2) return;
+
+  const apelidos = {};
+  const fragmento = document.createDocumentFragment();
+
+  [''].concat(categorias).forEach(function (categoria) {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'filtro';
+    botao.dataset.categoria = categoria;
+    botao.textContent = categoria || ROTULO_TODAS;
+    botao.setAttribute('aria-pressed', 'false');
+
+    if (categoria) apelidos[gerarApelido(categoria)] = categoria;
+
+    botao.addEventListener('click', function () {
+      // Guarda a escolha no endereço, sem recarregar nem rolar a página,
+      // para o link da categoria poder ser mandado para a cliente
+      const destino = categoria
+        ? '#' + gerarApelido(categoria)
+        : window.location.pathname + window.location.search;
+
+      history.replaceState(null, '', destino);
+      aplicarFiltro(categoria);
+    });
+
+    fragmento.appendChild(botao);
+  });
+
+  filtros.replaceChildren(fragmento);
+  filtros.hidden = false;
+
+  // Abriu a página já com #vestidos? Começa filtrado.
+  const apelidoInicial = window.location.hash.replace('#', '');
+  return apelidos[apelidoInicial] || '';
+}
+
+/* ---------------------------------------------------------
+   7) CONTROLE DE ESTADOS E INICIALIZAÇÃO
    --------------------------------------------------------- */
 
 function mostrarStatus(elementoVisivel) {
-  [statusCarregando, statusErro, statusVazio, statusConfig].forEach(function (elemento) {
-    elemento.hidden = elemento !== elementoVisivel;
-  });
+  [statusCarregando, statusErro, statusVazio, statusConfig, statusSemResultado]
+    .forEach(function (elemento) {
+      elemento.hidden = elemento !== elementoVisivel;
+    });
 }
 
 async function iniciar() {
@@ -373,8 +692,13 @@ async function iniciar() {
       return;
     }
 
-    renderizarVitrine(produtos);
-    mostrarStatus(null);
+    // Só as linhas com nome viram peça — assim o menu não conta rascunhos
+    todosOsProdutos = produtos.filter(function (produto) {
+      return produto.nome_produto;
+    });
+
+    const categoriaInicial = montarMenu(todosOsProdutos) || '';
+    aplicarFiltro(categoriaInicial);
   } catch (erro) {
     console.error(erro);
     mostrarStatus(statusErro);

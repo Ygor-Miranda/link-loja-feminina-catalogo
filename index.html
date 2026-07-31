@@ -35,6 +35,11 @@
         </p>
       </section>
 
+      <!-- ===== MENU DE CATEGORIAS =====
+           Os botões são montados pelo script.js a partir das categorias que
+           existem na planilha, para o menu nunca mostrar uma categoria vazia -->
+      <nav class="filtros" id="filtros" aria-label="Categorias" hidden></nav>
+
       <!-- ===== ESTADOS DE CARREGAMENTO / ERRO / VAZIO =====
            Controlados pelo script.js; começam ocultos, exceto o de carregamento -->
       <p class="vitrine-status" id="status-carregando">Carregando as peças…</p>
@@ -50,6 +55,12 @@
 
       <p class="vitrine-status" id="status-vazio" hidden>
         Nenhuma peça disponível no momento.
+      </p>
+
+      <!-- Categoria selecionada sem nenhuma peça (situação rara: o menu só
+           mostra categorias que têm produtos, mas cobre links antigos) -->
+      <p class="vitrine-status" id="status-sem-resultado" hidden>
+        Nenhuma peça nesta categoria no momento.
       </p>
 
       <!-- Estado de INSTALAÇÃO: aparece só enquanto a constante URL_PLANILHA_CSV

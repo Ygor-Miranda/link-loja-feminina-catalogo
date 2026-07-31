@@ -156,6 +156,70 @@ body {
   margin: 0 auto;
 }
 
+/* =========================================================
+   MENU DE CATEGORIAS
+   No celular vira uma faixa que rola na horizontal: com 7 botões não há
+   largura para todos, e quebrar em várias linhas empurraria as peças
+   para fora da primeira tela.
+   ========================================================= */
+.filtros {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 0.35rem;
+  overflow-x: auto;
+  /* Encosta o primeiro e o último botão nas bordas da área de rolagem */
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+/* Barra de rolagem escondida: a faixa já sugere o movimento pelo corte
+   do último botão na borda da tela */
+.filtros::-webkit-scrollbar {
+  display: none;
+}
+
+.filtro {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--color-gold-light);
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--color-text-soft);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.25s ease,
+              border-color 0.25s ease,
+              color 0.25s ease;
+}
+
+.filtro:hover {
+  border-color: var(--color-gold);
+  color: var(--color-gold-dark);
+}
+
+.filtro--ativo {
+  background-color: var(--color-gold);
+  border-color: var(--color-gold);
+  color: var(--color-white);
+}
+
+.filtro--ativo:hover {
+  color: var(--color-white);
+}
+
+.filtro:focus-visible {
+  outline: 2px solid var(--color-gold-dark);
+  outline-offset: 2px;
+}
+
 /* ===== MENSAGENS DE ESTADO (carregando / erro / vazio) ===== */
 .vitrine-status {
   text-align: center;
@@ -228,17 +292,139 @@ body {
 .card-media {
   /* Proporção fixa 3:4 (retrato) para que fotos de tamanhos diferentes
      não desalinhem as linhas do grid */
+  position: relative;
   aspect-ratio: 3 / 4;
   background-color: var(--color-cream-soft);
   overflow: hidden;
 }
 
+/* =========================================================
+   CARROSSEL DE FOTOS
+   O arraste é feito pelo próprio navegador (scroll-snap), não por JS:
+   fica mais fluido no celular e continua funcionando com o dedo, com
+   trackpad e com as setas do teclado.
+   ========================================================= */
+.carrossel-trilho {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  /* A barra de rolagem estragaria a foto; a navegação é por arraste/pontos */
+  scrollbar-width: none;
+}
+
+.carrossel-trilho::-webkit-scrollbar {
+  display: none;
+}
+
 .card-image {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
   display: block;
+}
+
+/* ===== Pontos indicadores ===== */
+.carrossel-pontos {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.55rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.3rem;
+  pointer-events: none;
+}
+
+.carrossel-ponto {
+  pointer-events: auto;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.65);
+  /* Sobre foto clara o ponto branco sumiria; a sombra garante o contraste */
+  box-shadow: 0 0 3px rgba(62, 54, 46, 0.5);
+  cursor: pointer;
+  transition: background-color 0.25s ease, transform 0.25s ease;
+}
+
+.carrossel-ponto--ativo {
+  background-color: var(--color-gold);
+  transform: scale(1.35);
+}
+
+.carrossel-ponto:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: 2px;
+}
+
+/* ===== Setas ===== */
+.carrossel-seta {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.85);
+  color: var(--color-text);
+  cursor: pointer;
+  /* Escondidas por padrão: no celular quem manda é o arraste, e as setas
+     roubariam espaço da foto num card de ~165px */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, background-color 0.25s ease;
+}
+
+.carrossel-seta svg {
+  width: 16px;
+  height: 16px;
+}
+
+.carrossel-seta--anterior {
+  left: 0.5rem;
+}
+
+.carrossel-seta--proxima {
+  right: 0.5rem;
+}
+
+.carrossel-seta:disabled {
+  opacity: 0 !important;
+}
+
+.carrossel-seta:hover {
+  background-color: var(--color-white);
+}
+
+/* Aparecem ao passar o mouse pelo card — ou seja, só onde existe mouse */
+@media (hover: hover) {
+  .card:hover .carrossel-seta:not(:disabled) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Navegação por teclado: a seta focada precisa aparecer mesmo sem hover */
+.carrossel-seta:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--color-gold-dark);
+  outline-offset: 2px;
 }
 
 .card-body {
@@ -374,6 +560,20 @@ body {
 /* A terceira coluna só entra a partir de 700px: abaixo disso ela deixaria
    o card estreito demais para o rótulo do botão caber em uma linha */
 @media (min-width: 700px) {
+  /* Cabendo todos na largura, o menu deixa de rolar e fica centralizado */
+  .filtros {
+    justify-content: center;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 0.6rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .filtro {
+    font-size: 0.72rem;
+    padding: 0.6rem 1.35rem;
+  }
+
   .vitrine {
     grid-template-columns: repeat(3, 1fr);
     gap: 1.35rem;
