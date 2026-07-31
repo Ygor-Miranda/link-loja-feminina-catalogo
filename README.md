@@ -8,14 +8,11 @@ sem mexer no código.
 
 ## Estado atual
 
-A página já está ligada à planilha do Google Sheets — é de lá que vêm as peças.
+A página já está ligada à planilha do Google Sheets — é de lá que vêm as peças,
+e é só editar a planilha para mudar o catálogo.
 
-O arquivo `produtos-exemplo.csv` continua no projeto apenas como **modelo de
-conteúdo**: são 12 peças fictícias, duas por categoria, todas com carrossel (de
-3 a 5 fotos cada), com fotos de banco de
-imagens (Pexels, uso livre). Serve para copiar as linhas para a planilha ou para
-testar a página sem depender da internet. Pode ser apagado quando as peças reais
-entrarem.
+O arquivo de peças de exemplo foi removido do projeto: as peças agora vivem na
+planilha. Para começar uma planilha do zero, use `modelo-planilha.csv`.
 
 ---
 
@@ -142,6 +139,35 @@ com fotos de peças distintas.
 
 ---
 
+## Visualizador em tela cheia
+
+Tocar em **qualquer ponto do card** — foto, nome ou categoria — abre a foto
+grande, ocupando a tela inteira. É o principal recurso para a cliente avaliar
+caimento e tecido: no celular o card tem pouco mais de 160px de largura, o que
+não basta para decidir uma compra.
+
+As únicas partes do card que fazem outra coisa são o botão **Consultar peça**,
+que vai para o WhatsApp, e os pontinhos e setas, que passam as fotos ali mesmo.
+
+**No celular:**
+
+| Gesto | O que faz |
+|---|---|
+| Tocar no card | Abre o visualizador, já na foto que estava à mostra |
+| Arrastar para o lado | Passa para a próxima foto da peça |
+| Dois dedos (pinça) | Amplia até 4× |
+| Tocar duas vezes | Amplia direto no ponto tocado; tocar de novo volta |
+| Arrastar com a foto ampliada | Passeia pela foto |
+| Tocar no fundo escuro ou no × | Fecha |
+
+**No computador:** setas nas laterais, clique duplo ou roda do mouse para
+ampliar, arrastar para passear, e as teclas ← → e `Esc`.
+
+O botão **Consultar peça** aparece também dentro do visualizador — é ali,
+olhando a peça de perto, que costuma nascer a vontade de perguntar o preço.
+
+---
+
 ## Menu de categorias
 
 O menu é montado sozinho a partir da coluna `categoria` da planilha. **Só
@@ -185,7 +211,6 @@ Acentos e espaços viram texto simples: `Calças` → `#calcas`.
 | `script.js` | Lê a planilha e monta a vitrine — **as constantes ficam aqui** |
 | `assets/` | Logo, arte de fundo e fontes (tudo local, sem CDN) |
 | `modelo-planilha.csv` | Modelo vazio para importar no Google Sheets |
-| `produtos-exemplo.csv` | 12 peças fictícias, 2 por categoria — modelo de conteúdo |
 
 ---
 

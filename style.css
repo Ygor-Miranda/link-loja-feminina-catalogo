@@ -289,6 +289,16 @@ body {
   box-shadow: 0 12px 26px rgba(62, 54, 46, 0.1);
 }
 
+/* Card com fotos: o quadrado inteiro abre o visualizador */
+.card--clicavel {
+  cursor: pointer;
+}
+
+/* Arrastar o carrossel não deve sair selecionando o nome da peça */
+.card--clicavel .card-body {
+  user-select: none;
+}
+
 .card-media {
   /* Proporção fixa 3:4 (retrato) para que fotos de tamanhos diferentes
      não desalinhem as linhas do grid */
@@ -643,5 +653,253 @@ body {
 @media (min-width: 1280px) {
   .vitrine {
     gap: 1.85rem;
+  }
+}
+
+/* =========================================================
+   VISUALIZADOR EM TELA CHEIA (lightbox)
+   Principal forma de ver a peça de perto: no celular o card tem pouco
+   mais de 160px de largura, insuficiente para avaliar caimento e tecido.
+   ========================================================= */
+
+/* Trava a rolagem do catálogo enquanto o visualizador está aberto.
+   Vai nos dois elementos porque o Safari iOS — navegador embutido do
+   Instagram e do WhatsApp — ignora a trava aplicada só ao body. */
+html.sem-rolagem,
+body.sem-rolagem {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.lightbox {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  /* Acima da moldura decorativa, que fica em z-index 2 */
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(32, 27, 22, 0.94);
+  /* Impede que o gesto vaze para a página atrás do visualizador */
+  overscroll-behavior: contain;
+}
+
+.lightbox[hidden] {
+  display: none;
+}
+
+/* A foto ocupa todo o espaço que sobra entre o topo e o rodapé */
+.lightbox-palco {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 0;
+  /* Os gestos de arraste e pinça são tratados pelo script */
+  touch-action: none;
+  cursor: zoom-in;
+}
+
+.lightbox-palco--ampliado {
+  cursor: grab;
+}
+
+.lightbox-palco--ampliado:active {
+  cursor: grabbing;
+}
+
+.lightbox-foto {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  /* Sem transição durante a pinça, para o zoom acompanhar o dedo */
+  transform-origin: center center;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ===== Fechar ===== */
+.lightbox-fechar {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.14);
+  color: var(--color-white);
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.lightbox-fechar:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+.lightbox-fechar svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ===== Setas ===== */
+.lightbox-seta {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.14);
+  color: var(--color-white);
+  cursor: pointer;
+  transition: background-color 0.25s ease, opacity 0.25s ease;
+}
+
+.lightbox-seta:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+.lightbox-seta:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.lightbox-seta svg {
+  width: 20px;
+  height: 20px;
+}
+
+.lightbox-seta--anterior {
+  left: 0.6rem;
+}
+
+.lightbox-seta--proxima {
+  right: 0.6rem;
+}
+
+.lightbox-fechar:focus-visible,
+.lightbox-seta:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+/* ===== Rodapé: pontos, nome da peça e botão ===== */
+.lightbox-rodape {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1rem 1.25rem calc(1.1rem + env(safe-area-inset-bottom));
+  text-align: center;
+}
+
+.lightbox-rodape .carrossel-pontos {
+  position: static;
+  gap: 0.35rem;
+}
+
+.lightbox-rodape .carrossel-ponto {
+  width: 7px;
+  height: 7px;
+  box-shadow: none;
+  background-color: rgba(255, 255, 255, 0.35);
+}
+
+.lightbox-rodape .carrossel-ponto--ativo {
+  background-color: var(--color-gold);
+}
+
+.lightbox-legenda {
+  font-family: var(--font-title);
+  font-size: 0.9rem;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--color-cream);
+}
+
+/* Mesmo CTA do card: é aqui, olhando a peça de perto, que a vontade
+   de perguntar o preço aparece */
+.lightbox-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1.8rem;
+  border-radius: 5px;
+  background-color: var(--color-gold);
+  color: var(--color-white);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.25s ease;
+}
+
+.lightbox-btn:hover {
+  background-color: var(--color-gold-dark);
+}
+
+.lightbox-btn:focus-visible {
+  outline: 2px solid var(--color-cream);
+  outline-offset: 3px;
+}
+
+.lightbox-dica {
+  font-size: 0.68rem;
+  font-weight: 300;
+  letter-spacing: 0.4px;
+  color: rgba(251, 247, 243, 0.55);
+}
+
+/* No computador a dica muda: lá o gesto é outro */
+@media (hover: hover) {
+  .lightbox-dica {
+    font-size: 0.7rem;
+  }
+}
+
+@media (min-width: 700px) {
+  .lightbox-fechar {
+    top: 1.4rem;
+    right: 1.4rem;
+  }
+
+  .lightbox-seta--anterior {
+    left: 1.4rem;
+  }
+
+  .lightbox-seta--proxima {
+    right: 1.4rem;
+  }
+
+  .lightbox-palco {
+    padding: 1.5rem 4.5rem;
+  }
+
+  .lightbox-legenda {
+    font-size: 1rem;
+  }
+
+  .lightbox-btn {
+    font-size: 0.75rem;
   }
 }

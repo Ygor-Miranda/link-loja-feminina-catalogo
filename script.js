@@ -8,12 +8,9 @@
    1) CONFIGURAÇÃO — edite apenas estas duas constantes
    --------------------------------------------------------- */
 
-/* ATENÇÃO: está apontando para o arquivo de DEMONSTRAÇÃO (produtos-exemplo.csv),
-   com peças e fotos fictícias, só para a página poder ser vista funcionando.
-
-   Para entrar no ar de verdade, troque o valor abaixo pelo link do Google Sheets
-   publicado na web em formato CSV.
-   Como gerar: Arquivo → Compartilhar → Publicar na web →
+/* Link do Google Sheets publicado na web em formato CSV — é daqui que saem
+   as peças do catálogo. Para trocar de planilha:
+   Arquivo → Compartilhar → Publicar na web →
    selecione a aba → formato "Valores separados por vírgula (.csv)" → Publicar.
    O link tem o formato:
    https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=csv */
@@ -90,6 +87,17 @@ const statusConfig = document.getElementById('status-config');
 const statusSemResultado = document.getElementById('status-sem-resultado');
 const linkErroWhatsApp = document.getElementById('erro-whatsapp');
 const filtros = document.getElementById('filtros');
+
+const lightbox = document.getElementById('lightbox');
+const lightboxPalco = document.getElementById('lightbox-palco');
+const lightboxFoto = document.getElementById('lightbox-foto');
+const lightboxPontos = document.getElementById('lightbox-pontos');
+const lightboxLegenda = document.getElementById('lightbox-legenda');
+const lightboxWhatsApp = document.getElementById('lightbox-whatsapp');
+const lightboxDica = document.getElementById('lightbox-dica');
+const lightboxFechar = document.getElementById('lightbox-fechar');
+const lightboxAnterior = document.getElementById('lightbox-anterior');
+const lightboxProxima = document.getElementById('lightbox-proxima');
 
 /* ---------------------------------------------------------
    3) LEITURA E PARSER DO CSV
@@ -348,14 +356,44 @@ function criarIconeSeta(desenho) {
  * aparecem setas ao passar o mouse. Os pontos indicam a posição e também
  * navegam.
  */
-function criarMedia(imagens, nomeProduto) {
+function criarMedia(imagens, produto) {
   const media = document.createElement('div');
   media.className = 'card-media';
 
-  const descricao = nomeProduto || 'Peça Lumière Fashion';
+  const descricao = produto.nome_produto || 'Peça Lumière Fashion';
 
   // Sem foto na planilha: fica só o fundo creme do .card-media
   if (imagens.length === 0) return media;
+
+  /* Abre o visualizador em tela cheia na foto que está à mostra.
+     Fica guardado no próprio elemento para que o card inteiro — e não só a
+     foto — possa disparar a abertura. */
+  media.abrirVisualizador = function () {
+    const trilhoAtual = media.querySelector('.carrossel-trilho');
+    const largura = trilhoAtual ? trilhoAtual.clientWidth : 0;
+    const visivel = largura ? Math.round(trilhoAtual.scrollLeft / largura) : 0;
+
+    // Fotos quebradas já foram removidas: manda para o visualizador
+    // apenas as que realmente carregaram
+    const validas = Array.prototype.map.call(
+      media.querySelectorAll('.card-image'),
+      function (img) { return img.src; }
+    );
+    if (validas.length === 0) return;
+
+    abrirVisualizador(produto, validas, Math.min(visivel, validas.length - 1), media);
+  };
+
+  // Alvo do teclado: a foto é o elemento que representa "ver as fotos"
+  media.tabIndex = 0;
+  media.setAttribute('role', 'button');
+  media.setAttribute('aria-label', 'Ampliar fotos de ' + descricao);
+  media.addEventListener('keydown', function (evento) {
+    if (evento.key === 'Enter' || evento.key === ' ') {
+      evento.preventDefault();
+      media.abrirVisualizador();
+    }
+  });
 
   const trilho = document.createElement('div');
   trilho.className = 'carrossel-trilho';
@@ -367,9 +405,11 @@ function criarMedia(imagens, nomeProduto) {
     imagem.alt = imagens.length > 1
       ? descricao + ' — foto ' + (indice + 1) + ' de ' + imagens.length
       : descricao;
-    // A primeira foto é a que aparece na vitrine: carrega junto com a página.
-    // As demais só quando a cliente arrastar.
-    imagem.loading = indice === 0 ? 'eager' : 'lazy';
+    /* Todas em lazy, inclusive a capa: o navegador já baixa na hora as que
+       estão na tela, e adia o resto. Com 14 peças no 4G, marcar as capas
+       como "eager" dispararia 14 downloads simultâneos logo na abertura. */
+    imagem.loading = 'lazy';
+    imagem.decoding = 'async';
     trilho.appendChild(imagem);
     return imagem;
   });
@@ -396,7 +436,9 @@ function criarMedia(imagens, nomeProduto) {
     ponto.type = 'button';
     ponto.className = 'carrossel-ponto';
     ponto.setAttribute('aria-label', 'Ver foto ' + (indice + 1));
-    ponto.addEventListener('click', function () {
+    ponto.addEventListener('click', function (evento) {
+      // Navegar entre as fotos do card não deve abrir o visualizador
+      evento.stopPropagation();
       trilho.scrollTo({ left: trilho.clientWidth * indice, behavior: 'smooth' });
     });
     pontos.appendChild(ponto);
@@ -412,7 +454,9 @@ function criarMedia(imagens, nomeProduto) {
     seta.className = 'carrossel-seta ' + classe;
     seta.setAttribute('aria-label', rotulo);
     seta.appendChild(criarIconeSeta(desenho));
-    seta.addEventListener('click', function () {
+    seta.addEventListener('click', function (evento) {
+      // Navegar entre as fotos do card não deve abrir o visualizador
+      evento.stopPropagation();
       trilho.scrollBy({ left: trilho.clientWidth * passo, behavior: 'smooth' });
     });
     media.appendChild(seta);
@@ -499,7 +543,7 @@ function criarCard(produto) {
   card.className = 'card';
 
   // --- Fotos ---
-  const media = criarMedia(extrairImagens(produto), produto.nome_produto);
+  const media = criarMedia(extrairImagens(produto), produto);
 
   // --- Conteúdo ---
   const corpo = document.createElement('div');
@@ -526,10 +570,25 @@ function criarCard(produto) {
   botao.appendChild(criarIconeWhatsApp());
   // Como o card não mostra preço, o rótulo deixa explícito o motivo do toque
   botao.appendChild(document.createTextNode('Consultar peça'));
+  // O botão leva ao WhatsApp; não pode disparar o visualizador junto
+  botao.addEventListener('click', function (evento) {
+    evento.stopPropagation();
+  });
   corpo.appendChild(botao);
 
   card.appendChild(media);
   card.appendChild(corpo);
+
+  /* O card inteiro abre as fotos — no celular, um alvo de toque de ~165px de
+     largura é muito mais fácil de acertar do que só a área da imagem.
+     Pontos, setas e o botão do WhatsApp interrompem a propagação e seguem
+     fazendo o que já faziam. */
+  if (media.abrirVisualizador) {
+    card.classList.add('card--clicavel');
+    card.addEventListener('click', function () {
+      media.abrirVisualizador();
+    });
+  }
 
   return card;
 }
@@ -550,7 +609,301 @@ function renderizarVitrine(produtos) {
 }
 
 /* ---------------------------------------------------------
-   6) MENU DE CATEGORIAS
+   6) VISUALIZADOR EM TELA CHEIA (com zoom)
+   --------------------------------------------------------- */
+
+const ZOOM_MAXIMO = 4;
+const ZOOM_DUPLO_TOQUE = 2.5;
+/* Arraste horizontal, em pixels, para trocar de foto */
+const ARRASTE_PARA_TROCAR = 60;
+
+const visualizador = {
+  fotos: [],
+  indice: 0,
+  produto: null,
+  escala: 1,
+  x: 0,
+  y: 0,
+  elementoQueAbriu: null
+};
+
+/* Estado dos gestos em andamento */
+const gesto = {
+  arrastando: false,
+  xInicial: 0,
+  yInicial: 0,
+  baseX: 0,
+  baseY: 0,
+  distanciaInicial: 0,
+  escalaInicial: 1,
+  ultimoToque: 0
+};
+
+function aplicarTransformacao() {
+  lightboxFoto.style.transform =
+    'translate(' + visualizador.x + 'px, ' + visualizador.y + 'px) scale(' + visualizador.escala + ')';
+  lightboxPalco.classList.toggle('lightbox-palco--ampliado', visualizador.escala > 1);
+}
+
+/**
+ * Impede que a foto ampliada seja arrastada para fora da tela, deixando
+ * área vazia à mostra.
+ */
+function limitarDeslocamento() {
+  const limiteX = Math.max(0, (lightboxFoto.clientWidth * visualizador.escala - lightboxPalco.clientWidth) / 2);
+  const limiteY = Math.max(0, (lightboxFoto.clientHeight * visualizador.escala - lightboxPalco.clientHeight) / 2);
+
+  visualizador.x = Math.min(limiteX, Math.max(-limiteX, visualizador.x));
+  visualizador.y = Math.min(limiteY, Math.max(-limiteY, visualizador.y));
+}
+
+function definirZoom(novaEscala, ancoraX, ancoraY) {
+  const anterior = visualizador.escala;
+  visualizador.escala = Math.min(ZOOM_MAXIMO, Math.max(1, novaEscala));
+
+  if (visualizador.escala === 1) {
+    visualizador.x = 0;
+    visualizador.y = 0;
+  } else if (typeof ancoraX === 'number') {
+    // Mantém sob o dedo o ponto da foto que estava lá antes de ampliar
+    const fator = visualizador.escala / anterior;
+    const centro = lightboxPalco.getBoundingClientRect();
+    const alvoX = ancoraX - (centro.left + centro.width / 2);
+    const alvoY = ancoraY - (centro.top + centro.height / 2);
+
+    visualizador.x = alvoX - (alvoX - visualizador.x) * fator;
+    visualizador.y = alvoY - (alvoY - visualizador.y) * fator;
+  }
+
+  limitarDeslocamento();
+  aplicarTransformacao();
+}
+
+function reiniciarZoom() {
+  visualizador.escala = 1;
+  visualizador.x = 0;
+  visualizador.y = 0;
+  aplicarTransformacao();
+}
+
+function mostrarFoto(indice) {
+  const total = visualizador.fotos.length;
+  if (total === 0) return;
+
+  visualizador.indice = Math.min(total - 1, Math.max(0, indice));
+  lightboxFoto.src = visualizador.fotos[visualizador.indice];
+  lightboxFoto.alt = (visualizador.produto ? visualizador.produto.nome_produto : 'Peça') +
+    ' — foto ' + (visualizador.indice + 1) + ' de ' + total;
+
+  reiniciarZoom();
+
+  Array.prototype.forEach.call(lightboxPontos.children, function (ponto, i) {
+    const ativo = i === visualizador.indice;
+    ponto.classList.toggle('carrossel-ponto--ativo', ativo);
+    ponto.setAttribute('aria-current', ativo ? 'true' : 'false');
+  });
+
+  const nome = visualizador.produto ? visualizador.produto.nome_produto : '';
+  lightboxLegenda.textContent = total > 1
+    ? nome + ' — ' + (visualizador.indice + 1) + ' de ' + total
+    : nome;
+
+  // Com uma foto só não há para onde navegar
+  const navegavel = total > 1;
+  lightboxAnterior.hidden = !navegavel;
+  lightboxProxima.hidden = !navegavel;
+  lightboxPontos.hidden = !navegavel;
+  lightboxAnterior.disabled = visualizador.indice === 0;
+  lightboxProxima.disabled = visualizador.indice === total - 1;
+}
+
+function irParaFoto(passo) {
+  mostrarFoto(visualizador.indice + passo);
+}
+
+function abrirVisualizador(produto, fotos, indiceInicial, elementoQueAbriu) {
+  if (!fotos || fotos.length === 0) return;
+
+  visualizador.fotos = fotos;
+  visualizador.produto = produto;
+  visualizador.elementoQueAbriu = elementoQueAbriu || null;
+
+  // Um ponto para cada foto
+  const fragmento = document.createDocumentFragment();
+  fotos.forEach(function (url, i) {
+    const ponto = document.createElement('button');
+    ponto.type = 'button';
+    ponto.className = 'carrossel-ponto';
+    ponto.setAttribute('aria-label', 'Ver foto ' + (i + 1));
+    ponto.addEventListener('click', function () { mostrarFoto(i); });
+    fragmento.appendChild(ponto);
+  });
+  lightboxPontos.replaceChildren(fragmento);
+
+  lightboxWhatsApp.href = montarLinkWhatsApp(produto);
+
+  // A dica precisa falar do gesto que a pessoa realmente tem à mão
+  lightboxDica.textContent = window.matchMedia('(hover: hover)').matches
+    ? 'Clique duas vezes ou use a roda do mouse para ampliar'
+    : 'Toque duas vezes ou use dois dedos para ampliar';
+
+  mostrarFoto(indiceInicial || 0);
+
+  lightbox.hidden = false;
+  // Trava a rolagem do catálogo atrás do visualizador
+  document.documentElement.classList.add('sem-rolagem');
+  document.body.classList.add('sem-rolagem');
+  lightboxFechar.focus();
+}
+
+function fecharVisualizador() {
+  lightbox.hidden = true;
+  document.documentElement.classList.remove('sem-rolagem');
+  document.body.classList.remove('sem-rolagem');
+  reiniciarZoom();
+  // Devolve o foco para a foto que a cliente tocou
+  if (visualizador.elementoQueAbriu) visualizador.elementoQueAbriu.focus();
+}
+
+/* ----- Gestos no palco ----- */
+
+function distanciaEntre(a, b) {
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
+lightboxPalco.addEventListener('touchstart', function (evento) {
+  if (evento.touches.length === 2) {
+    // Pinça: guarda a distância inicial entre os dois dedos
+    gesto.arrastando = false;
+    gesto.distanciaInicial = distanciaEntre(evento.touches[0], evento.touches[1]);
+    gesto.escalaInicial = visualizador.escala;
+    return;
+  }
+
+  if (evento.touches.length !== 1) return;
+
+  if (Date.now() - gesto.ultimoToque < 300) {
+    // Duplo toque: amplia no ponto tocado, ou volta ao tamanho normal
+    definirZoom(
+      visualizador.escala > 1 ? 1 : ZOOM_DUPLO_TOQUE,
+      evento.touches[0].clientX,
+      evento.touches[0].clientY
+    );
+    gesto.ultimoToque = 0;
+    return;
+  }
+
+  gesto.arrastando = true;
+  gesto.xInicial = evento.touches[0].clientX;
+  gesto.yInicial = evento.touches[0].clientY;
+  gesto.baseX = visualizador.x;
+  gesto.baseY = visualizador.y;
+}, { passive: true });
+
+lightboxPalco.addEventListener('touchmove', function (evento) {
+  if (evento.touches.length === 2 && gesto.distanciaInicial) {
+    const proporcao = distanciaEntre(evento.touches[0], evento.touches[1]) / gesto.distanciaInicial;
+    const meioX = (evento.touches[0].clientX + evento.touches[1].clientX) / 2;
+    const meioY = (evento.touches[0].clientY + evento.touches[1].clientY) / 2;
+    definirZoom(gesto.escalaInicial * proporcao, meioX, meioY);
+    evento.preventDefault();
+    return;
+  }
+
+  if (!gesto.arrastando || evento.touches.length !== 1) return;
+
+  const deslocX = evento.touches[0].clientX - gesto.xInicial;
+  const deslocY = evento.touches[0].clientY - gesto.yInicial;
+
+  if (visualizador.escala > 1) {
+    // Ampliada: o arraste passeia pela foto
+    visualizador.x = gesto.baseX + deslocX;
+    visualizador.y = gesto.baseY + deslocY;
+    limitarDeslocamento();
+    aplicarTransformacao();
+    evento.preventDefault();
+  }
+}, { passive: false });
+
+lightboxPalco.addEventListener('touchend', function (evento) {
+  gesto.distanciaInicial = 0;
+
+  if (!gesto.arrastando) return;
+  gesto.arrastando = false;
+
+  if (evento.changedTouches.length !== 1) return;
+
+  const deslocX = evento.changedTouches[0].clientX - gesto.xInicial;
+  const deslocY = evento.changedTouches[0].clientY - gesto.yInicial;
+  const andou = Math.hypot(deslocX, deslocY);
+
+  /* A janela do duplo toque só é armada por um toque PARADO. Sem isso, dois
+     arrastes rápidos seguidos cairiam dentro dos 300ms e seriam lidos como
+     duplo toque — ou seja, passar fotos depressa ampliaria a foto. */
+  gesto.ultimoToque = andou < 10 ? Date.now() : 0;
+
+  // Sem zoom, o arraste horizontal troca de foto
+  if (visualizador.escala === 1 &&
+      Math.abs(deslocX) > ARRASTE_PARA_TROCAR &&
+      Math.abs(deslocX) > Math.abs(deslocY)) {
+    irParaFoto(deslocX < 0 ? 1 : -1);
+  }
+}, { passive: true });
+
+/* Duplo clique e roda do mouse, para quem estiver no computador */
+lightboxPalco.addEventListener('dblclick', function (evento) {
+  definirZoom(visualizador.escala > 1 ? 1 : ZOOM_DUPLO_TOQUE, evento.clientX, evento.clientY);
+});
+
+lightboxPalco.addEventListener('wheel', function (evento) {
+  evento.preventDefault();
+  definirZoom(visualizador.escala * (evento.deltaY < 0 ? 1.15 : 0.87), evento.clientX, evento.clientY);
+}, { passive: false });
+
+/* Arrastar com o mouse quando a foto está ampliada */
+lightboxPalco.addEventListener('mousedown', function (evento) {
+  if (visualizador.escala === 1) return;
+  evento.preventDefault();
+  gesto.arrastando = true;
+  gesto.xInicial = evento.clientX;
+  gesto.yInicial = evento.clientY;
+  gesto.baseX = visualizador.x;
+  gesto.baseY = visualizador.y;
+});
+
+window.addEventListener('mousemove', function (evento) {
+  if (!gesto.arrastando || visualizador.escala === 1) return;
+  visualizador.x = gesto.baseX + (evento.clientX - gesto.xInicial);
+  visualizador.y = gesto.baseY + (evento.clientY - gesto.yInicial);
+  limitarDeslocamento();
+  aplicarTransformacao();
+});
+
+window.addEventListener('mouseup', function () {
+  gesto.arrastando = false;
+});
+
+/* ----- Botões e teclado ----- */
+
+lightboxFechar.addEventListener('click', fecharVisualizador);
+lightboxAnterior.addEventListener('click', function () { irParaFoto(-1); });
+lightboxProxima.addEventListener('click', function () { irParaFoto(1); });
+
+/* Tocar no fundo escuro fecha; tocar na foto, não */
+lightbox.addEventListener('click', function (evento) {
+  if (evento.target === lightbox || evento.target === lightboxPalco) fecharVisualizador();
+});
+
+document.addEventListener('keydown', function (evento) {
+  if (lightbox.hidden) return;
+
+  if (evento.key === 'Escape') fecharVisualizador();
+  if (evento.key === 'ArrowLeft') irParaFoto(-1);
+  if (evento.key === 'ArrowRight') irParaFoto(1);
+});
+
+/* ---------------------------------------------------------
+   7) MENU DE CATEGORIAS
    --------------------------------------------------------- */
 
 /* Guarda o catálogo inteiro em memória: filtrar é só re-renderizar a partir
@@ -662,7 +1015,7 @@ function montarMenu(produtos) {
 }
 
 /* ---------------------------------------------------------
-   7) CONTROLE DE ESTADOS E INICIALIZAÇÃO
+   8) CONTROLE DE ESTADOS E INICIALIZAÇÃO
    --------------------------------------------------------- */
 
 function mostrarStatus(elementoVisivel) {
