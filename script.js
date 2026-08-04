@@ -160,15 +160,109 @@ function parsearCSV(texto) {
 }
 
 /**
+ * Traduz o título de uma coluna para o nome que o site usa internamente.
+ *
+ * Existe porque a planilha pode ser preenchida de duas formas:
+ *  - na mão, com as colunas já nomeadas: id, nome_produto, categoria, link_imagem
+ *  - pelo Google Forms, que nomeia as colunas com o texto da pergunta:
+ *    "Código da peça", "Nome da peça", "Categoria da peça", "Fotos da peça"
+ *
+ * A comparação ignora acentos e maiúsculas e busca por palavra-chave, para
+ * pequenas diferenças de redação no formulário não quebrarem o catálogo.
+ */
+function padronizarCabecalho(titulo, jaUsados) {
+  const limpo = String(titulo)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  // Colunas já nomeadas do jeito que o site espera passam direto
+  if (/^(id|nome_produto|categoria|link_imagem(_\d+)?)$/.test(limpo)) return limpo;
+
+  if (limpo.indexOf('codigo') !== -1) return 'id';
+  if (limpo.indexOf('categoria') !== -1) return 'categoria';
+  if (limpo.indexOf('nome') !== -1) return 'nome_produto';
+
+  // "publicado", "Publicar no site?", "Ativo", "Visível no site"
+  if (limpo.indexOf('publicad') !== -1 || limpo.indexOf('publicar') !== -1 ||
+      limpo.indexOf('ativo') !== -1 || limpo.indexOf('visivel') !== -1) {
+    return 'publicado';
+  }
+
+  if (limpo.indexOf('foto') !== -1 || limpo.indexOf('imagem') !== -1) {
+    // Pode haver mais de uma coluna de foto: a primeira vira link_imagem,
+    // as seguintes viram link_imagem_2, link_imagem_3...
+    const quantas = jaUsados.filter(function (nome) {
+      return /^link_imagem(_\d+)?$/.test(nome);
+    }).length;
+    return quantas === 0 ? 'link_imagem' : 'link_imagem_' + (quantas + 1);
+  }
+
+  // Colunas que o site não usa (carimbo de data/hora, e-mail, observações...)
+  return limpo;
+}
+
+/**
+ * Diz se um valor de célula parece ser o endereço de uma foto.
+ * Cobre os links do Google Drive (que não terminam em .jpg) e endereços
+ * comuns terminados em extensão de imagem.
+ */
+function pareceEnderecoDeFoto(valor) {
+  const texto = String(valor || '').trim();
+  if (!/^https?:\/\//i.test(texto)) return false;
+
+  return /drive\.google\.com|googleusercontent\.com/i.test(texto) ||
+         /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(texto);
+}
+
+/**
+ * Rede de segurança para quando a coluna das fotos vem sem título.
+ *
+ * Acontece ao vincular um formulário novo a uma planilha que já existia: o
+ * Sheets nomeia a coluna como "Coluna 5" e o cabeçalho deixa de dizer que
+ * ali há fotos. Em vez de exigir que alguém renomeie a célula, o site olha o
+ * CONTEÚDO das colunas ainda não identificadas e adota como foto aquela cujos
+ * valores são endereços de imagem.
+ */
+function detectarColunasDeFotoPeloConteudo(cabecalho, linhas) {
+  const jaTemFoto = cabecalho.some(function (nome) {
+    return /^link_imagem(_\d+)?$/.test(nome);
+  });
+  if (jaTemFoto) return;
+
+  const conhecidas = ['id', 'nome_produto', 'categoria', 'publicado'];
+  let encontradas = 0;
+
+  cabecalho.forEach(function (nome, coluna) {
+    if (conhecidas.indexOf(nome) !== -1) return;
+
+    // Basta uma célula com cara de foto para identificar a coluna
+    const temFoto = linhas.some(function (linha) {
+      return pareceEnderecoDeFoto(linha[coluna]);
+    });
+
+    if (temFoto) {
+      encontradas += 1;
+      cabecalho[coluna] = encontradas === 1 ? 'link_imagem' : 'link_imagem_' + encontradas;
+    }
+  });
+}
+
+/**
  * Transforma a matriz do CSV em um array de objetos, usando a
  * primeira linha como nome das propriedades.
  */
 function converterEmObjetos(linhas) {
   if (linhas.length < 2) return [];
 
-  const cabecalho = linhas[0].map(function (coluna) {
-    return coluna.trim().toLowerCase();
+  const cabecalho = [];
+  linhas[0].forEach(function (coluna) {
+    cabecalho.push(padronizarCabecalho(coluna, cabecalho));
   });
+
+  // Coluna de fotos sem título: identifica pelo conteúdo
+  detectarColunasDeFotoPeloConteudo(cabecalho, linhas.slice(1));
 
   return linhas
     .slice(1)
@@ -189,7 +283,12 @@ function converterEmObjetos(linhas) {
  * Busca o CSV publicado e devolve o array de produtos.
  */
 async function buscarProdutos() {
-  const resposta = await fetch(URL_PLANILHA_CSV);
+  /* no-store: o navegador não guarda cópia da planilha. Sem isso, uma peça
+     apagada (ou vendida) poderia continuar aparecendo para quem já tinha
+     visitado o catálogo. O arquivo tem poucos KB, então não pesa.
+     O Google ainda mantém um cache próprio de alguns minutos, que não dá
+     para contornar daqui. */
+  const resposta = await fetch(URL_PLANILHA_CSV, { cache: 'no-store' });
 
   if (!resposta.ok) {
     throw new Error('Falha ao buscar a planilha: HTTP ' + resposta.status);
@@ -218,11 +317,34 @@ function normalizarImagem(url) {
 }
 
 /**
+ * Diz se a peça deve aparecer no catálogo, conforme a coluna "publicado".
+ *
+ * A peça só some quando o NÃO está escrito de forma explícita. Célula vazia,
+ * coluna inexistente ou qualquer outro texto mantêm a peça no ar — assim uma
+ * planilha antiga, ou uma resposta de formulário sem esse campo, nunca some
+ * do site por engano.
+ *
+ * Aceita as formas que costumam aparecer numa planilha: não, nao, n, no,
+ * false, 0 e também "esgotado".
+ */
+function estaPublicado(produto) {
+  const valor = String(produto.publicado || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  return !/^(nao|n|no|false|0|esgotado|desativado|inativo)$/.test(valor);
+}
+
+/**
  * Reúne todas as fotos da peça, na ordem das colunas da planilha:
  * link_imagem, link_imagem_2, link_imagem_3... (quantas a loja quiser).
  *
- * Também aceita mais de um endereço dentro da mesma célula, separados por
- * quebra de linha ou barra vertical — atalho para quem colar tudo de uma vez.
+ * Também aceita mais de um endereço dentro da mesma célula. É o caso do
+ * Google Forms: enviando 4 fotos numa pergunta de upload, ele grava os 4
+ * links numa célula só, separados por vírgula. Vale ainda quebra de linha
+ * e barra vertical, para quem colar vários links de uma vez.
  * Colunas vazias são descartadas, então deixar buracos no meio não quebra nada.
  */
 function extrairImagens(produto) {
@@ -239,7 +361,7 @@ function extrairImagens(produto) {
       return numero(a) - numero(b);
     })
     .reduce(function (lista, coluna) {
-      return lista.concat(String(produto[coluna] || '').split(/[\n|]+/));
+      return lista.concat(String(produto[coluna] || '').split(/[\n|,]+/));
     }, [])
     .map(function (url) { return url.trim(); })
     .filter(Boolean)
@@ -410,6 +532,11 @@ function criarMedia(imagens, produto) {
        como "eager" dispararia 14 downloads simultâneos logo na abertura. */
     imagem.loading = 'lazy';
     imagem.decoding = 'async';
+    /* Não envia o endereço do site ao pedir a foto. O Google Drive usa esse
+       campo para identificar uso da imagem por outro site e responde 429
+       (excesso de requisições) — comprovado em teste: com o campo, 429;
+       sem ele, 200. */
+    imagem.referrerPolicy = 'no-referrer';
     trilho.appendChild(imagem);
     return imagem;
   });
@@ -1045,10 +1172,18 @@ async function iniciar() {
       return;
     }
 
-    // Só as linhas com nome viram peça — assim o menu não conta rascunhos
+    /* Só as linhas com nome viram peça — assim o menu não conta rascunhos.
+       O filtro de "publicado" entra aqui, antes do menu, para que uma
+       categoria cujas peças estejam todas escondidas também suma do menu. */
     todosOsProdutos = produtos.filter(function (produto) {
-      return produto.nome_produto;
+      return produto.nome_produto && estaPublicado(produto);
     });
+
+    // Todas as peças escondidas: é diferente de planilha vazia
+    if (todosOsProdutos.length === 0) {
+      mostrarStatus(statusVazio);
+      return;
+    }
 
     const categoriaInicial = montarMenu(todosOsProdutos) || '';
     aplicarFiltro(categoriaInicial);

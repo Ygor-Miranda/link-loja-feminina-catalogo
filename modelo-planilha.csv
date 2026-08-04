@@ -1,4 +1,4 @@
-id,nome_produto,categoria,link_imagem,link_imagem_2,link_imagem_3,link_imagem_4
-1,Vestido Longo Seda Off-White,Vestidos,https://exemplo.com/foto-1a.jpg,https://exemplo.com/foto-1b.jpg,https://exemplo.com/foto-1c.jpg,
-2,Blazer Alfaiataria Nude,Conjuntos,https://exemplo.com/foto-2a.jpg,https://exemplo.com/foto-2b.jpg,,
-3,Camisa de Linho Bege,Camisas,https://exemplo.com/foto-3.jpg,,,
+id,nome_produto,categoria,link_imagem,link_imagem_2,link_imagem_3,link_imagem_4,publicado
+1,Vestido Longo Seda Off-White,Vestidos,https://exemplo.com/foto-1a.jpg,https://exemplo.com/foto-1b.jpg,https://exemplo.com/foto-1c.jpg,,SIM
+2,Blazer Alfaiataria Nude,Conjuntos,https://exemplo.com/foto-2a.jpg,https://exemplo.com/foto-2b.jpg,,,SIM
+3,Camisa de Linho Bege,Camisas,https://exemplo.com/foto-3.jpg,,,,NÃO

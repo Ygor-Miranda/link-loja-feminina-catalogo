@@ -99,6 +99,33 @@ lê os dados a cada acesso — não é preciso republicar nada.
 Uma linha sem `nome_produto` é ignorada, então dá para deixar rascunhos na
 planilha sem que apareçam no site.
 
+### Tirar uma peça do ar sem perder o cadastro
+
+A coluna **`publicado`** controla o que aparece. Escreva **NÃO** para a peça
+sumir do catálogo e **SIM** (ou deixe em branco) para ela voltar. O cadastro e
+as fotos continuam guardados — é o caminho para peça esgotada que pode retornar.
+
+| Valor na célula | O que acontece |
+|---|---|
+| `SIM`, `sim`, ou **célula vazia** | A peça aparece |
+| `NÃO`, `nao`, `N`, `0`, `Esgotado` | A peça some |
+| Qualquer outro texto | A peça aparece |
+
+Célula vazia mantém a peça no ar de propósito: assim uma planilha antiga, sem
+essa coluna, nunca some do site por engano.
+
+Se todas as peças de uma categoria estiverem com `NÃO`, a categoria também
+desaparece do menu — a cliente não cai numa lista vazia.
+
+### Excluir de vez
+
+Basta apagar a linha da planilha. Dois lembretes:
+
+- As fotos **continuam no Google Drive**, na pasta de respostas do formulário.
+  Limpe de tempos em tempos para não acumular.
+- A alteração pode levar **alguns minutos** para aparecer: o Google mantém uma
+  cópia da planilha publicada por volta de 5 minutos.
+
 ---
 
 ## Carrossel de fotos
